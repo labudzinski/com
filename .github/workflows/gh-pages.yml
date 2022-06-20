@@ -23,12 +23,6 @@ jobs:
           hugo-version: '0.91.2'
           extended: true
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-
-      - run: npm ci
       - run: hugo --minify
 
       - name: Deploy

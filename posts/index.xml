@@ -4,23 +4,23 @@ Istnieje jednak wiele mechanizmów, które nie są widoczne dla użytkowników, 
 <p>Zanim zaczniemy przygotowywać się do szyfrowania plików, musimy zaplanować cały proces, a możliwości jest wyjątkowo dużo, zarówno jeżeli chodzi o algorytmy szyfrowania, jak i metody przetwarzania zaszyfrowanych plików. Na potrzeby tego materiału skupimy się na metodzie szyfrowania podobnej do tej, którą stosujemy w systemie Effiana, natomiast pokażemy ją oczywiście w dużym uproszczeniu. Przykłady mają na celu przybliżenie sposobu działania mechanizmu, a nie rzeczywistego kodu. Metoda ta zakłada, że pliki trafiają do serwera już w formie zaszyfrowanej, a dostęp do nich jest ograniczony do wybranych osób i nie wymaga ponownego szyfrowania na skutek zmiany odbiorców. Przykłady będą stanowiły pewnego rodzaju ideę, której sposoby implementacji mogą się znacznie różnić od siebie.
 Zacznijmy zatem od prostego kodu wysyłającego pliki do serwera z przeglądarki użytkownika:</p>
 <pre tabindex="0"><code>function upload() {
-    const file = document.getElementById(&#34;file&#34;).files[0];
-    fetch(&#39;/upload&#39;, {
-        method: &#39;PUT&#39;,
+    const file = document.getElementById(&quot;file&quot;).files[0];
+    fetch('/upload', {
+        method: 'PUT',
         body: file
     });
 }
 </code></pre><p>Powyższy kod wysyła plik do serwera w najprostszy możliwy sposób bez szyfrowania. Naszym celem jest jednak przesyłanie zaszyfrowanego pliku, który nigdy nie trafi do serwera w postaci jawnej. Dodajmy zatem do funkcji zapisującej plik mechanizm szyfrowania, w tym celu użyjmy biblioteki cryptojs:</p>
 <pre tabindex="0"><code>function upload() {
-    const file = document.getElementById(&#34;file&#34;).files[0];
+    const file = document.getElementById(&quot;file&quot;).files[0];
     saveFile(file);
 }
 async function saveFile (file) {
   const reader = new FileReader();
-  reader.addEventListener(&#34;load&#34;, () =&gt; {
-        fetch(&#39;/upload&#39;, {
-            method: &#39;PUT&#39;,
-            body: CryptoJS.AES.encrypt(reader.result, &#34;&lt;pass&gt;&#34;)
+  reader.addEventListener(&quot;load&quot;, () =&gt; {
+        fetch('/upload', {
+            method: 'PUT',
+            body: CryptoJS.AES.encrypt(reader.result, &quot;&lt;pass&gt;&quot;)
         });
     }, false);
     if (file) {
@@ -28,19 +28,19 @@ async function saveFile (file) {
     }
 }
 </code></pre><p>W takiej formie funkcja saveFile wyśle plik zaszyfrowany bezpośrednio do serwera. Powyższy przykład zawiera jednak poważny błąd. Kluczem szyfrującym jest zapisane w kodzie hasło. Oczywiście można użyć w tym miejscu różnych mechanizmów, tj. sesje, czy cookie, natomiast w dalszym ciągu będzie to mało bezpieczne, gdyż hasło, którym zaszyfrujemy nasz plik, będzie w dalszym ciągu jedynym zabezpieczeniem. W tym celu zastosujemy szyfrowanie asymetryczne RSA i użyjemy biblioteki cryptico, a na potrzeby tego artykułu zapiszemy klucz publiczny w kodzie — docelowo powinien on być zwracany z serwera, ale na tym etapie przyjmijmy, że tak jest.</p>
-<pre tabindex="0"><code>const publicKeyString = &#39;MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgGFxQyrqquJh+W/5wtrD3lrEWaCp
+<pre tabindex="0"><code>const publicKeyString = 'MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgGFxQyrqquJh+W/5wtrD3lrEWaCp
 EDjcHreBGU37v58GB2i3Vl/3VBP1KUqlVmkre/iAXSOKKKnS2k8cqftPZMGf8+r6
 BJKX7PJkKIEDkxBjReoaIZsibqGEKYF1ZLKmrvXlBO2+EyMvymv8A8QnJtHWdznw
-yitAM25LKNRnPVWbAgMBAAE=&#39;;
+yitAM25LKNRnPVWbAgMBAAE=';
 function upload() {
-    const file = document.getElementById(&#34;file&#34;).files[0];
+    const file = document.getElementById(&quot;file&quot;).files[0];
     saveFile(file);
 }
 async function saveFile (file) {
   const reader = new FileReader();
-  reader.addEventListener(&#34;load&#34;, () =&gt; {
-        fetch(&#39;/upload&#39;, {
-            method: &#39;PUT&#39;,
+  reader.addEventListener(&quot;load&quot;, () =&gt; {
+        fetch('/upload', {
+            method: 'PUT',
             body: cryptico.encrypt(
                    reader.result, publicKeyString
                ).cipher
@@ -58,20 +58,20 @@ Moje podejście do tematyki bezpieczeństwa zawsze zakłada maksymalizację wysi
 Dlatego w dalszej części skupimy się na maksymalizacji efektu szyfrowania, a więc dla każdego pliku będzie generowana osobna para kluczy.
 Na początek poprawimy kod javascript, który będzie pobierał przed każdym wysłaniem pliku na serwer nowy klucz prywatny i identyfikator pliku, który pomoże przypisać odpowiednie klucze.</p>
 <pre tabindex="0"><code>function upload() {
-    const file = document.getElementById(&#34;file&#34;).files[0];
-    fetch(&#39;/upload&#39;, {method: &#39;HEAD&#39;}).then(function(response) {
+    const file = document.getElementById(&quot;file&quot;).files[0];
+    fetch('/upload', {method: 'HEAD'}).then(function(response) {
       saveFile(
           file,
-          response.headers.get(&#34;File-Public-Key&#34;),
-          response.headers.get(&#34;File-Id&#34;)
+          response.headers.get(&quot;File-Public-Key&quot;),
+          response.headers.get(&quot;File-Id&quot;)
       );
     });
 }
 async function saveFile (file, publicKeyString, fileId) {
   const reader = new FileReader();
-  reader.addEventListener(&#34;load&#34;, () =&gt; {
-        fetch(&#39;/upload&#39;, {
-            method: &#39;PUT&#39;,
+  reader.addEventListener(&quot;load&quot;, () =&gt; {
+        fetch('/upload', {
+            method: 'PUT',
             body: cryptico.encrypt(
                    reader.result, publicKeyString
                ).cipher
@@ -109,7 +109,7 @@ W tym miejscu możemy zastosować różne techniki zabezpieczenia tych kluczy, w
 <p>UWAGA: pliki zaszyfrowane w ten sposób nie będą mogły zostać odszyfrowane bez odpowiedniego klucza, a w przypadku skasowania ich z bazy, pliki staną się bezużyteczne i nie będzie możliwości ich odzyskania.
 Aby temu zapobiec, można dla każdego pliku szyfrować klucz publiczny i wysyłać go do zewnętrznego kontenera. W systemie Effiana stosujemy w tym celu dedykowaną bazę danych, która umożliwia tylko i wyłącznie dodanie do tabeli kluczy, ale nie pozwala na ich usuwanie, edycję i pobieranie, dodatkowo co określony czas wszystkie klucze są zapisywane w zaszyfrowanej kopii bezpieczeństwa, która jest rozsyłana do kilku miejsc docelowych.
 W przypadku bazy danych komenda może wyglądać tak:
-MySQL: &ldquo;GRANT INSERT ON table TO ‘username’@&rsquo;localhost’;&rdquo;
+MySQL: &ldquo;GRANT INSERT ON table TO ‘username’@&lsquo;localhost’;&rdquo;
 PostgreSQL: &ldquo;GRANT INSERT ON table TO username;&rdquo;</p>
 </blockquote>
 <p>W następnych częściach zajmiemy się szyfrowaniem dużych plików (&gt;1GB), pobieraniem odszyfrowanych plików i rozszerzaniem osób uprawnionych do ich odszyfrowania.
